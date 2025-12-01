@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle2, XCircle, Brain, Tag as TagIcon, MessageSquare, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useSchemaConfig } from "@/hooks/use-schema-config"
 
 interface DomainClassificationData {
   classified_domain: string
@@ -15,30 +16,6 @@ interface DomainClassificationData {
 
 interface DomainClassificationOutputProps {
   data: DomainClassificationData
-}
-
-const domainConfig = {
-  MM: {
-    fullName: "Member Management",
-    color: "bg-slate-100 dark:bg-slate-800",
-    badgeColor: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800",
-  },
-  CIW: {
-    fullName: "Customer Integration Workflow",
-    color: "bg-slate-100 dark:bg-slate-800",
-    badgeColor: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800",
-  },
-  Specialty: {
-    fullName: "Specialty Services",
-    color: "bg-slate-100 dark:bg-slate-800",
-    badgeColor: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    iconColor: "text-blue-600 dark:text-blue-400",
-    borderColor: "border-blue-200 dark:border-blue-800",
-  },
 }
 
 const parseReasoning = (reasoning: string) => {
@@ -69,9 +46,25 @@ const parseReasoning = (reasoning: string) => {
 }
 
 export function DomainClassificationOutput({ data }: DomainClassificationOutputProps) {
-  const config = domainConfig[data.classified_domain as keyof typeof domainConfig] || domainConfig.MM
+  const { getDomainInfo, getDomainColors, domains } = useSchemaConfig()
+
+  const domainInfo = getDomainInfo(data.classified_domain)
+  const colors = getDomainColors(data.classified_domain)
+
+  // Build config object from dynamic data
+  const config = {
+    fullName: domainInfo.full_name,
+    color: colors.bg,
+    badgeColor: `${colors.bg} ${colors.text}`,
+    iconColor: colors.icon,
+    borderColor: colors.border,
+  }
+
   const confidencePercentage = data.confidence * 100
   const domainResults = parseReasoning(data.reasoning)
+
+  // Calculate domain count for methodology description
+  const domainCount = domains.length
 
   return (
     <div className="space-y-4">
@@ -85,7 +78,7 @@ export function DomainClassificationOutput({ data }: DomainClassificationOutputP
                 MTC-LLM Binary Classification Method
               </p>
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                Uses 3 parallel binary classifiers (MM, CIW, Specialty) to independently evaluate the ticket.
+                Uses {domainCount} parallel binary classifiers ({domains.join(", ")}) to independently evaluate the ticket.
                 The final domain is selected based on the highest confidence score.
               </p>
             </div>
@@ -139,8 +132,12 @@ export function DomainClassificationOutput({ data }: DomainClassificationOutputP
           </CardHeader>
           <CardContent className="space-y-2">
             {domainResults.map((result, idx) => {
-              const resultConfig =
-                domainConfig[result.domain as keyof typeof domainConfig] || domainConfig.MM
+              const resultDomainInfo = getDomainInfo(result.domain)
+              const resultColors = getDomainColors(result.domain)
+              const resultConfig = {
+                fullName: resultDomainInfo.full_name,
+                badgeColor: `${resultColors.bg} ${resultColors.text}`,
+              }
 
               return (
                 <div

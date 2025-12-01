@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Upload, Send } from "lucide-react"
+import { useSchemaConfig } from "@/hooks/use-schema-config"
 
 export interface TicketData {
   ticket_id: string
@@ -27,6 +28,7 @@ interface TicketSubmissionProps {
 
 export function TicketSubmission({ onSubmit, onLoadSample, isProcessing, onTextChange }: TicketSubmissionProps) {
   const [ticketText, setTicketText] = useState("")
+  const { samplePlaceholder } = useSchemaConfig()
 
   const handleTextChange = (text: string) => {
     setTicketText(text)
@@ -64,7 +66,7 @@ export function TicketSubmission({ onSubmit, onLoadSample, isProcessing, onTextC
       <CardContent className="space-y-4">
         <div>
           <Textarea
-            placeholder="Enter ticket description here...&#10;&#10;Example:&#10;The MM_ALDER service is experiencing connection timeout errors when connecting to the database. Users are reporting slow response times during peak hours..."
+            placeholder={samplePlaceholder || "Enter ticket description here..."}
             value={ticketText}
             onChange={(e) => handleTextChange(e.target.value)}
             className="min-h-[200px] font-mono text-sm"

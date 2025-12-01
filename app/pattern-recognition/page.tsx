@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AgentCard, AgentStatus } from "@/components/agent-card"
 import { TicketSubmission, TicketData } from "@/components/ticket-submission"
 import { ResolutionGenerationOutput } from "@/components/resolution-generation-output"
@@ -24,6 +24,8 @@ export default function PatternRecognitionPage() {
   const [finalOutput, setFinalOutput] = useState<any>(null)
   const [showOutput, setShowOutput] = useState(false)
   const [currentTicketText, setCurrentTicketText] = useState("")
+  // Configuration state - tracks if domain classification is disabled
+  const [skipClassification, setSkipClassification] = useState(true)
   const [agents, setAgents] = useState<Record<string, AgentState>>({
     classification: {
       status: "idle",
@@ -50,6 +52,22 @@ export default function PatternRecognitionPage() {
       streamingText: "",
     },
   })
+
+  // Fetch config on mount to check if classification is enabled
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/config")
+        if (response.ok) {
+          const config = await response.json()
+          setSkipClassification(config.skip_domain_classification)
+        }
+      } catch (error) {
+        console.log("Could not fetch config, using defaults")
+      }
+    }
+    fetchConfig()
+  }, [])
 
   const handleLoadSample = async (setTicketText: (text: string) => void) => {
     // Load sample ticket from the backend's input file and populate the textarea
@@ -275,37 +293,46 @@ Affected users: ${ticket.metadata.affected_users}`
         <CardHeader>
           <CardTitle className="text-sm font-semibold text-blue-900 dark:text-blue-100">
             Agent Workflow Sequence
+            {skipClassification && (
+              <span className="ml-2 text-xs font-normal text-orange-600 dark:text-orange-400">
+                (Domain Classification disabled)
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2">
-            {/* Step 1: Domain Classification */}
-            <div className="flex flex-col items-center min-w-[140px]">
-              <div
-                className={`rounded-lg p-3 transition-all duration-300 ${
-                  agents.classification.status === "processing" ||
-                  agents.classification.status === "streaming"
-                    ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
-                    : agents.classification.status === "complete"
-                    ? "bg-green-500 shadow-md"
-                    : "bg-gray-300 dark:bg-gray-700"
-                }`}
-              >
-                <Brain className="h-6 w-6 text-white" />
-              </div>
-              <p className="text-xs font-medium mt-2 text-center">
-                Domain
-                <br />
-                Classification
-              </p>
-              {agents.classification.status === "complete" && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
-              )}
-            </div>
+            {/* Step 1: Domain Classification - Only shown if not skipped */}
+            {!skipClassification && (
+              <>
+                <div className="flex flex-col items-center min-w-[140px]">
+                  <div
+                    className={`rounded-lg p-3 transition-all duration-300 ${
+                      agents.classification.status === "processing" ||
+                      agents.classification.status === "streaming"
+                        ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
+                        : agents.classification.status === "complete"
+                        ? "bg-green-500 shadow-md"
+                        : "bg-gray-300 dark:bg-gray-700"
+                    }`}
+                  >
+                    <Brain className="h-6 w-6 text-white" />
+                  </div>
+                  <p className="text-xs font-medium mt-2 text-center">
+                    Domain
+                    <br />
+                    Classification
+                  </p>
+                  {agents.classification.status === "complete" && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                  )}
+                </div>
 
-            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              </>
+            )}
 
-            {/* Step 2: Pattern Recognition */}
+            {/* Step 2: Pattern Recognition (Step 1 when classification is skipped) */}
             <div className="flex flex-col items-center min-w-[140px]">
               <div
                 className={`rounded-lg p-3 transition-all duration-300 ${
@@ -386,12 +413,15 @@ Affected users: ${ticket.metadata.affected_users}`
 
       {/* Agent Progress Dashboard */}
       <div className="grid gap-6 md:grid-cols-2">
-        <AgentCard
-          name="Domain Classification Agent"
-          description="Classifies tickets into MM, CIW, or Specialty domains"
-          icon={<Brain className="h-5 w-5" />}
-          {...agents.classification}
-        />
+        {/* Domain Classification Agent - Only shown if not skipped */}
+        {!skipClassification && (
+          <AgentCard
+            name="Domain Classification Agent"
+            description="Classifies tickets into MM, CIW, or Specialty domains"
+            icon={<Brain className="h-5 w-5" />}
+            {...agents.classification}
+          />
+        )}
         <AgentCard
           name="Pattern Recognition Agent"
           description="Finds similar historical tickets using FAISS vector search"
