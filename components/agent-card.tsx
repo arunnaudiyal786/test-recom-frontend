@@ -3,12 +3,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, CheckCircle2, XCircle, Circle } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, Circle, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DomainClassificationOutput } from "./domain-classification-output"
 import { PatternRecognitionOutput } from "./pattern-recognition-output"
 import { LabelAssignmentOutput } from "./label-assignment-output"
 import { ResolutionGenerationOutput } from "./resolution-generation-output"
+import { PromptViewerDialog } from "./prompt-viewer-dialog"
+import { PromptPreviewTooltip } from "./prompt-preview-tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 // Simple summary component for resolution generation agent card
 function ResolutionSummaryOutput({ data }: { data: any }) {
@@ -51,6 +59,13 @@ function ResolutionSummaryOutput({ data }: { data: any }) {
 
 export type AgentStatus = "idle" | "processing" | "streaming" | "complete" | "error"
 
+// Types for actual prompts
+interface ActualLabelingPrompts {
+  historical?: string
+  business?: string
+  technical?: string
+}
+
 export interface AgentCardProps {
   name: string
   description: string
@@ -62,6 +77,8 @@ export interface AgentCardProps {
   errorMessage?: string
   toolCalls?: Array<{ name: string; description: string }>
   toolOutputs?: Array<{ name: string; content: string }>
+  // Actual prompts with real data filled in (from SSE)
+  actualPrompts?: ActualLabelingPrompts | string
 }
 
 const statusConfig = {
@@ -113,6 +130,7 @@ export function AgentCard({
   errorMessage,
   toolCalls = [],
   toolOutputs = [],
+  actualPrompts,
 }: AgentCardProps) {
   const config = statusConfig[status]
   const StatusIcon = config.icon
@@ -212,6 +230,9 @@ export function AgentCard({
     ? parseResolutionGenerationOutput(output)
     : null
 
+  // Determine if this agent should show the prompt info button
+  const shouldShowPromptButton = (isLabelAssignment || isResolutionGeneration) && status === "complete" && actualPrompts
+
   return (
     <Card
       className={cn(
@@ -227,7 +248,37 @@ export function AgentCard({
               {icon}
             </div>
             <div>
-              <CardTitle className="text-lg">{name}</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-lg">{name}</CardTitle>
+                {/* Info button for viewing actual prompts - with hover tooltip */}
+                {shouldShowPromptButton && (
+                  <TooltipProvider>
+                    <Tooltip delayDuration={300}>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <PromptViewerDialog
+                            agentType={isLabelAssignment ? "label_assignment" : "resolution_generation"}
+                            actualPrompts={actualPrompts}
+                            trigger={
+                              <button
+                                className="p-1 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+                              >
+                                <HelpCircle className="h-4 w-4 text-blue-500 hover:text-blue-600" />
+                              </button>
+                            }
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="p-3 max-w-md">
+                        <PromptPreviewTooltip
+                          agentType={isLabelAssignment ? "label_assignment" : "resolution_generation"}
+                          actualPrompts={actualPrompts}
+                        />
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           </div>

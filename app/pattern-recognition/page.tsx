@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+// Actual prompts from SSE (with real ticket data filled in)
+interface ActualLabelingPrompts {
+  historical?: string
+  business?: string
+  technical?: string
+}
+
 interface AgentState {
   status: AgentStatus
   progress: number
@@ -17,6 +24,8 @@ interface AgentState {
   errorMessage?: string
   toolCalls?: Array<{ name: string; description: string }>
   toolOutputs?: Array<{ name: string; content: string }>
+  // Actual prompts with real data filled in
+  actualPrompts?: ActualLabelingPrompts | string
 }
 
 export default function PatternRecognitionPage() {
@@ -231,6 +240,16 @@ Affected users: ${ticket.metadata.affected_users}`
                     ? `${streamedMessages}\n\n--- Final Output ---\n${finalOutput}`
                     : finalOutput
 
+                  // Extract actual prompts from SSE data
+                  let actualPrompts: ActualLabelingPrompts | string | undefined = undefined
+                  if (agentKey === "labelAssignment" && data.data?.actual_prompts) {
+                    // Label assignment: object with historical, business, technical
+                    actualPrompts = data.data.actual_prompts as ActualLabelingPrompts
+                  } else if (agentKey === "resolutionGeneration" && data.data?.actual_prompt) {
+                    // Resolution generation: single string
+                    actualPrompts = data.data.actual_prompt as string
+                  }
+
                   return {
                     ...prev,
                     [agentKey]: {
@@ -239,6 +258,7 @@ Affected users: ${ticket.metadata.affected_users}`
                       progress: 100,
                       output: combinedOutput,
                       streamingText: "",
+                      actualPrompts,
                     },
                   }
                 })
