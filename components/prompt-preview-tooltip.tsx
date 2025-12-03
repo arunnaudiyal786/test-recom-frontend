@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react"
 
 // Types for actual prompts
 interface ActualLabelingPrompts {
-  historical?: string
+  category?: string
   business?: string
   technical?: string
 }
@@ -50,7 +50,7 @@ export function PromptPreviewTooltip({ agentType, actualPrompts }: PromptPreview
   // Get first available prompt for preview
   let previewText = ""
   if (isLabelAssignment && labelingPrompts) {
-    previewText = labelingPrompts.historical || labelingPrompts.business || labelingPrompts.technical || ""
+    previewText = labelingPrompts.category || labelingPrompts.business || labelingPrompts.technical || ""
   } else if (resolutionPrompt) {
     previewText = resolutionPrompt
   }
@@ -66,8 +66,8 @@ export function PromptPreviewTooltip({ agentType, actualPrompts }: PromptPreview
       {isLabelAssignment && labelingPrompts && (
         <div className="flex gap-4 text-xs">
           <PromptAvailabilityIndicator
-            label="Historical"
-            available={!!labelingPrompts.historical}
+            label="Category"
+            available={!!labelingPrompts.category}
           />
           <PromptAvailabilityIndicator
             label="Business"

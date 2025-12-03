@@ -61,7 +61,7 @@ export type AgentStatus = "idle" | "processing" | "streaming" | "complete" | "er
 
 // Types for actual prompts
 interface ActualLabelingPrompts {
-  historical?: string
+  category?: string
   business?: string
   technical?: string
 }

@@ -6,15 +6,12 @@ import { Progress } from "@/components/ui/progress"
 import {
   Tag as TagIcon,
   CheckCircle2,
-  XCircle,
-  TrendingUp,
   Info,
-  BarChart3,
-  History,
   Briefcase,
   Wrench,
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,11 +19,11 @@ import { cn } from "@/lib/utils"
 // INTERFACES
 // ============================================================================
 
-interface HistoricalLabelDetail {
-  label: string
+interface CategoryLabel {
+  id: string
+  name: string
   confidence: number
-  distribution: string
-  assigned: boolean
+  reasoning?: string
 }
 
 interface GeneratedLabel {
@@ -38,11 +35,40 @@ interface GeneratedLabel {
   root_cause_hypothesis?: string
 }
 
+interface NoveltySignal {
+  name: string
+  fires: boolean
+  value: number
+  threshold: number
+  actual: number
+  reasoning: string
+}
+
+interface NoveltyDetails {
+  signals_fired?: number
+  nearest_category?: string
+  decision_factors?: {
+    is_novel_by_confidence: boolean
+    is_novel_by_score: boolean
+    novelty_score_threshold: number
+  }
+}
+
 interface LabelAssignmentData {
-  // Historical labels (from similar tickets)
-  historical_labels?: string[]
-  historical_label_confidence?: Record<string, number>
-  historical_label_distribution?: Record<string, string>
+  // Category labels (from predefined taxonomy - replaces historical_labels)
+  category_labels?: CategoryLabel[]
+
+  // Novelty Detection (enhanced with multi-signal approach)
+  novelty_detected?: boolean
+  novelty_score?: number
+  novelty_reasoning?: string
+  novelty_recommendation?: "proceed" | "flag_for_review" | "escalate"
+  novelty_signals?: {
+    signal_1_max_confidence?: NoveltySignal
+    signal_2_entropy?: NoveltySignal
+    signal_3_centroid_distance?: NoveltySignal
+  }
+  novelty_details?: NoveltyDetails
 
   // AI-Generated Business Labels
   business_labels?: GeneratedLabel[]
@@ -52,11 +78,7 @@ interface LabelAssignmentData {
 
   // Combined (backward compatibility)
   assigned_labels: string[]
-  label_count: number
-  confidence: Record<string, number>
-  assigned_with_details: HistoricalLabelDetail[]
-  rejected_labels: HistoricalLabelDetail[]
-  total_candidates: number
+  label_count?: number
 }
 
 interface LabelAssignmentOutputProps {
@@ -66,28 +88,6 @@ interface LabelAssignmentOutputProps {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-const getLabelCategory = (label: string) => {
-  if (label.startsWith("#")) {
-    return {
-      type: "hashtag",
-      color: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-      icon: "#",
-    }
-  }
-  if (label.includes("Fix")) {
-    return {
-      type: "fix",
-      color: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-      icon: "🔧",
-    }
-  }
-  return {
-    type: "general",
-    color: "bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300",
-    icon: "📌",
-  }
-}
 
 const getBusinessCategoryStyle = (category: string) => {
   const styles: Record<string, { bg: string; text: string; icon: string }> = {
@@ -118,26 +118,25 @@ const getTechnicalCategoryStyle = (category: string) => {
 
 export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
   // Extract counts
-  const historicalLabels = data.historical_labels || data.assigned_with_details?.filter(l => l.assigned).map(l => l.label) || []
+  const categoryLabels = data.category_labels || []
   const businessLabels = data.business_labels || []
   const technicalLabels = data.technical_labels || []
 
-  const historicalCount = historicalLabels.length
+  const categoryCount = categoryLabels.length
   const businessCount = businessLabels.length
   const technicalCount = technicalLabels.length
-  const totalLabels = historicalCount + businessCount + technicalCount
+  const totalLabels = categoryCount + businessCount + technicalCount
 
-  const totalCandidates = data.total_candidates || historicalCount
-  const rejectedCount = data.rejected_labels?.length || 0
-
-  // Build historical labels with details
-  const historicalWithDetails: HistoricalLabelDetail[] = data.assigned_with_details ||
-    historicalLabels.map(label => ({
-      label,
-      confidence: data.historical_label_confidence?.[label] || data.confidence?.[label] || 0,
-      distribution: data.historical_label_distribution?.[label] || "N/A",
-      assigned: true
-    }))
+  // Novelty detection: explicit flag OR no category labels assigned (indicates novel ticket)
+  const noCategoryLabelsAssigned = categoryCount === 0
+  const noveltyDetected = data.novelty_detected || noCategoryLabelsAssigned
+  const noveltyScore = data.novelty_score || (noCategoryLabelsAssigned ? 1.0 : 0)
+  const noveltyReasoning = data.novelty_reasoning || (noCategoryLabelsAssigned
+    ? "No predefined category labels could be assigned to this ticket. This may represent a novel category not in the current taxonomy."
+    : undefined)
+  const noveltyRecommendation = data.novelty_recommendation || (noCategoryLabelsAssigned ? "escalate" : undefined)
+  const noveltySignals = data.novelty_signals
+  const noveltyDetails = data.novelty_details
 
   return (
     <div className="space-y-4">
@@ -152,8 +151,8 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-1.5">
-                  <History className="h-3 w-3 text-blue-500" />
-                  <span><strong>Historical:</strong> From similar tickets</span>
+                  <TagIcon className="h-3 w-3 text-blue-500" />
+                  <span><strong>Category:</strong> From predefined taxonomy</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Briefcase className="h-3 w-3 text-emerald-500" />
@@ -168,6 +167,134 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Novelty Detection Alert - Matches Resolution Generation Warning Style */}
+      {noveltyDetected && (
+        <Card className={`border-2 ${
+          noveltyScore > 0.8
+            ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30"
+            : "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+        }`}>
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${
+                noveltyScore > 0.8
+                  ? "bg-amber-100 dark:bg-amber-900"
+                  : "bg-amber-100/50 dark:bg-amber-900/50"
+              }`}>
+                <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 space-y-2">
+                {/* Header with Score */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-sm text-amber-900 dark:text-amber-100">
+                      Novelty Detected
+                    </h4>
+                    <Badge
+                      className={`text-xs ${
+                        noveltyScore > 0.8
+                          ? "bg-amber-500 text-white"
+                          : "bg-amber-400 text-white"
+                      }`}
+                    >
+                      {noveltyScore > 0.8 ? "HIGH" : "MEDIUM"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                    <span className="font-medium">Score:</span>
+                    <span className="font-bold">{(noveltyScore * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+
+                {/* Reasoning/Message */}
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  {noveltyReasoning || `This ticket may represent a novel category (score: ${noveltyScore.toFixed(2)}). Consider reviewing the category taxonomy.`}
+                </p>
+
+                {/* Recommendation Badge */}
+                {noveltyRecommendation && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 dark:text-amber-300">
+                      Recommendation: {noveltyRecommendation.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Signal Details - Collapsible/Detailed Section */}
+                {noveltySignals && (
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-200 dark:border-amber-800 mt-2">
+                    {noveltySignals.signal_1_max_confidence && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_1_max_confidence.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Max Confidence</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_1_max_confidence.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_1_max_confidence.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_1_max_confidence.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                    {noveltySignals.signal_2_entropy && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_2_entropy.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Entropy</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_2_entropy.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_2_entropy.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_2_entropy.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                    {noveltySignals.signal_3_centroid_distance && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_3_centroid_distance.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Distance</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_3_centroid_distance.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_3_centroid_distance.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_3_centroid_distance.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Nearest Category */}
+                {noveltyDetails?.nearest_category && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 pt-1">
+                    Nearest category: <span className="font-medium">{noveltyDetails.nearest_category}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Statistics Card */}
       <Card className="border border-blue-200 dark:border-blue-800 overflow-hidden">
@@ -187,14 +314,14 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
                   {totalLabels === 1 ? "Label" : "Labels"} Assigned
                 </CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Across Historical, Business, and Technical categories
+                  Across Category, Business, and Technical classifications
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
               <Badge className="text-xs px-2 py-1 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                <History className="h-3 w-3 mr-1" />
-                {historicalCount}
+                <TagIcon className="h-3 w-3 mr-1" />
+                {categoryCount}
               </Badge>
               <Badge className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 <Briefcase className="h-3 w-3 mr-1" />
@@ -210,28 +337,27 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
       </Card>
 
       {/* ================================================================== */}
-      {/* HISTORICAL LABELS SECTION */}
+      {/* CATEGORY LABELS SECTION */}
       {/* ================================================================== */}
       <Card className="border border-blue-200 dark:border-blue-800">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <div className="p-1.5 rounded-md bg-blue-100 dark:bg-blue-900">
-              <History className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <TagIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
-            <span>Historical Labels</span>
+            <span>Category Labels</span>
             <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-              {historicalCount}
+              {categoryCount}
             </Badge>
           </CardTitle>
           <p className="text-xs text-muted-foreground ml-9">
-            Labels validated against {totalCandidates} candidates from similar historical tickets
+            Categories from predefined taxonomy (25 available categories)
           </p>
         </CardHeader>
         <CardContent className="space-y-2">
-          {historicalWithDetails.filter(l => l.assigned).length > 0 ? (
-            historicalWithDetails.filter(l => l.assigned).map((labelDetail, idx) => {
-              const category = getLabelCategory(labelDetail.label)
-              const confidencePercentage = (labelDetail.confidence || 0) * 100
+          {categoryLabels.length > 0 ? (
+            categoryLabels.map((categoryLabel, idx) => {
+              const confidencePercentage = (categoryLabel.confidence || 0) * 100
 
               return (
                 <Card
@@ -240,11 +366,13 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
                 >
                   <CardContent className="p-3 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <Badge className={cn("text-sm px-2.5 py-0.5", category.color)}>
-                          {category.icon && <span className="mr-1">{category.icon}</span>}
-                          {labelDetail.label}
+                        <Badge className="text-sm px-2.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                          {categoryLabel.name}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+                          {categoryLabel.id}
                         </Badge>
                       </div>
                       <div className="text-right">
@@ -256,20 +384,14 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
                     </div>
 
                     <div className="space-y-1">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Confidence Score</span>
-                        <span className="font-medium">{confidencePercentage.toFixed(1)}%</span>
-                      </div>
                       <Progress value={confidencePercentage} className="h-1.5 bg-blue-100 dark:bg-blue-900" />
                     </div>
 
-                    {labelDetail.distribution && labelDetail.distribution !== "N/A" && (
-                      <div className="flex items-center gap-2 pt-1.5 border-t border-blue-200 dark:border-blue-800 text-xs">
-                        <TrendingUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                        <span className="text-muted-foreground">Historical frequency:</span>
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-300">
-                          {labelDetail.distribution}
-                        </Badge>
+                    {categoryLabel.reasoning && (
+                      <div className="pt-2 border-t border-blue-200 dark:border-blue-800">
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          📋 {categoryLabel.reasoning}
+                        </p>
                       </div>
                     )}
                   </CardContent>
@@ -278,7 +400,7 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
             })
           ) : (
             <div className="text-center py-4 text-sm text-muted-foreground">
-              No historical labels assigned
+              No category labels assigned
             </div>
           )}
         </CardContent>
@@ -460,56 +582,6 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
         </CardContent>
       </Card>
 
-      {/* ================================================================== */}
-      {/* REJECTED LABELS SECTION (Historical only) */}
-      {/* ================================================================== */}
-      {data.rejected_labels && data.rejected_labels.length > 0 && (
-        <Card className="border border-slate-200 dark:border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-slate-500" />
-              Not Assigned ({rejectedCount})
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Historical labels below confidence threshold (70%)
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-1.5">
-            {data.rejected_labels.map((labelDetail, idx) => {
-              const category = getLabelCategory(labelDetail.label)
-              const confidencePercentage = (labelDetail.confidence || 0) * 100
-
-              return (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"
-                >
-                  <div className="flex items-center gap-2">
-                    <XCircle className="h-3 w-3 text-slate-400" />
-                    <Badge variant="outline" className={cn("text-xs", category.color)}>
-                      {category.icon && <span className="mr-1">{category.icon}</span>}
-                      {labelDetail.label}
-                    </Badge>
-                    {labelDetail.distribution && labelDetail.distribution !== "N/A" && (
-                      <span className="text-xs text-muted-foreground">
-                        ({labelDetail.distribution} in history)
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20">
-                      <Progress value={confidencePercentage} className="h-1" />
-                    </div>
-                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400 w-10 text-right">
-                      {confidencePercentage.toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

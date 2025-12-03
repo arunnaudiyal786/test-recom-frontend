@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, FileText, History, Briefcase, Wrench, Code, Sparkles } from "lucide-react"
+import { Loader2, FileText, Tag, Briefcase, Wrench, Code, Sparkles } from "lucide-react"
 
 // ============================================================================
 // TYPES
@@ -30,7 +30,7 @@ interface PromptData {
 
 interface PromptsResponse {
   label_assignment: {
-    historical: PromptData
+    category: PromptData
     business: PromptData
     technical: PromptData
   }
@@ -39,7 +39,7 @@ interface PromptsResponse {
 
 // Actual prompts with filled-in data from processing
 interface ActualLabelingPrompts {
-  historical?: string
+  category?: string
   business?: string
   technical?: string
 }
@@ -121,7 +121,7 @@ export function PromptViewerDialog({ agentType, trigger, actualPrompts }: Prompt
   // Check if we have actual prompts (with real data filled in)
   const hasActualPrompts = actualPrompts !== undefined && actualPrompts !== null
 
-  // For label assignment, actualPrompts is an object with historical, business, technical
+  // For label assignment, actualPrompts is an object with category, business, technical
   // For resolution, actualPrompts is a string
   const actualLabelingPrompts = typeof actualPrompts === 'object' ? actualPrompts as ActualLabelingPrompts : null
   const actualResolutionPrompt = typeof actualPrompts === 'string' ? actualPrompts : null
@@ -207,11 +207,11 @@ export function PromptViewerDialog({ agentType, trigger, actualPrompts }: Prompt
                 </p>
               </div>
 
-              <Tabs defaultValue="historical" className="w-full">
+              <Tabs defaultValue="category" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="historical" className="flex items-center gap-1.5">
-                    <History className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Historical</span>
+                  <TabsTrigger value="category" className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Category</span>
                   </TabsTrigger>
                   <TabsTrigger value="business" className="flex items-center gap-1.5">
                     <Briefcase className="h-3.5 w-3.5" />
@@ -223,16 +223,16 @@ export function PromptViewerDialog({ agentType, trigger, actualPrompts }: Prompt
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Historical Labels Tab - Actual */}
-                <TabsContent value="historical" className="mt-4 space-y-4">
-                  {actualLabelingPrompts.historical ? (
+                {/* Category Labels Tab - Actual */}
+                <TabsContent value="category" className="mt-4 space-y-4">
+                  {actualLabelingPrompts.category ? (
                     <PromptCodeBlock
-                      content={actualLabelingPrompts.historical}
-                      title="Actual Historical Label Evaluation Prompt"
+                      content={actualLabelingPrompts.category}
+                      title="Actual Category Classification Prompt"
                     />
                   ) : (
                     <div className="text-sm text-muted-foreground py-4 text-center">
-                      No historical label prompt available
+                      No category label prompt available
                     </div>
                   )}
                 </TabsContent>
@@ -296,11 +296,11 @@ export function PromptViewerDialog({ agentType, trigger, actualPrompts }: Prompt
 
           {/* Label Assignment Prompts (Tabbed) - Templates */}
           {!loading && !error && prompts && isLabelAssignment && !hasActualPrompts && (
-            <Tabs defaultValue="historical" className="w-full">
+            <Tabs defaultValue="category" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="historical" className="flex items-center gap-1.5">
-                  <History className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Historical</span>
+                <TabsTrigger value="category" className="flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Category</span>
                 </TabsTrigger>
                 <TabsTrigger value="business" className="flex items-center gap-1.5">
                   <Briefcase className="h-3.5 w-3.5" />
@@ -312,19 +312,19 @@ export function PromptViewerDialog({ agentType, trigger, actualPrompts }: Prompt
                 </TabsTrigger>
               </TabsList>
 
-              {/* Historical Labels Tab */}
-              <TabsContent value="historical" className="mt-4 space-y-4">
+              {/* Category Labels Tab */}
+              <TabsContent value="category" className="mt-4 space-y-4">
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
                   <p className="text-sm text-blue-700 dark:text-blue-300">
-                    {prompts.label_assignment.historical.description}
+                    {prompts.label_assignment.category.description}
                   </p>
                 </div>
                 <PromptCodeBlock
-                  content={prompts.label_assignment.historical.template}
+                  content={prompts.label_assignment.category.template}
                   title="Prompt Template"
                 />
-                {prompts.label_assignment.historical.label_criteria && (
-                  <LabelCriteriaDisplay criteria={prompts.label_assignment.historical.label_criteria} />
+                {prompts.label_assignment.category.label_criteria && (
+                  <LabelCriteriaDisplay criteria={prompts.label_assignment.category.label_criteria} />
                 )}
               </TabsContent>
 

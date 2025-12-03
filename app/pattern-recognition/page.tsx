@@ -4,14 +4,14 @@ import { useState, useEffect } from "react"
 import { AgentCard, AgentStatus } from "@/components/agent-card"
 import { TicketSubmission, TicketData } from "@/components/ticket-submission"
 import { ResolutionGenerationOutput } from "@/components/resolution-generation-output"
-import { Brain, Search, Tag, FileText, Download, Eye, EyeOff, ChevronRight } from "lucide-react"
+import { Brain, Search, Tag, FileText, Download, Eye, EyeOff, ChevronRight, Sparkles } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Actual prompts from SSE (with real ticket data filled in)
 interface ActualLabelingPrompts {
-  historical?: string
+  category?: string
   business?: string
   technical?: string
 }
@@ -49,6 +49,12 @@ export default function PatternRecognitionPage() {
       streamingText: "",
     },
     labelAssignment: {
+      status: "idle",
+      progress: 0,
+      output: "",
+      streamingText: "",
+    },
+    noveltyDetection: {
       status: "idle",
       progress: 0,
       output: "",
@@ -243,7 +249,7 @@ Affected users: ${ticket.metadata.affected_users}`
                   // Extract actual prompts from SSE data
                   let actualPrompts: ActualLabelingPrompts | string | undefined = undefined
                   if (agentKey === "labelAssignment" && data.data?.actual_prompts) {
-                    // Label assignment: object with historical, business, technical
+                    // Label assignment: object with category, business, technical
                     actualPrompts = data.data.actual_prompts as ActualLabelingPrompts
                   } else if (agentKey === "resolutionGeneration" && data.data?.actual_prompt) {
                     // Resolution generation: single string
@@ -404,7 +410,33 @@ Affected users: ${ticket.metadata.affected_users}`
 
             <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
 
-            {/* Step 4: Resolution Generation */}
+            {/* Step 4: Novelty Detection */}
+            <div className="flex flex-col items-center min-w-[140px]">
+              <div
+                className={`rounded-lg p-3 transition-all duration-300 ${
+                  agents.noveltyDetection.status === "processing" ||
+                  agents.noveltyDetection.status === "streaming"
+                    ? "bg-amber-500 shadow-lg ring-2 ring-amber-300 animate-pulse"
+                    : agents.noveltyDetection.status === "complete"
+                    ? "bg-green-500 shadow-md"
+                    : "bg-gray-300 dark:bg-gray-700"
+                }`}
+              >
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+              <p className="text-xs font-medium mt-2 text-center">
+                Novelty
+                <br />
+                Detection
+              </p>
+              {agents.noveltyDetection.status === "complete" && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+              )}
+            </div>
+
+            <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+
+            {/* Step 5: Resolution Generation */}
             <div className="flex flex-col items-center min-w-[140px]">
               <div
                 className={`rounded-lg p-3 transition-all duration-300 ${
@@ -453,6 +485,12 @@ Affected users: ${ticket.metadata.affected_users}`
           description="Assigns relevant labels based on historical patterns"
           icon={<Tag className="h-5 w-5" />}
           {...agents.labelAssignment}
+        />
+        <AgentCard
+          name="Novelty Detection Agent"
+          description="Detects if ticket represents a new category not in taxonomy"
+          icon={<Sparkles className="h-5 w-5" />}
+          {...agents.noveltyDetection}
         />
         <AgentCard
           name="Resolution Generation Agent"

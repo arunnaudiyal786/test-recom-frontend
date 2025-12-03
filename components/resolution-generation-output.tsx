@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, AlertTriangle, CheckCircle2, Info, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp } from "lucide-react"
+import { Clock, AlertTriangle, CheckCircle2, Info, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -29,6 +29,14 @@ interface Reference {
   note: string
 }
 
+interface NoveltyWarning {
+  type: string
+  severity: "high" | "medium" | "low"
+  score: number
+  recommendation: string
+  message: string
+}
+
 interface ResolutionPlan {
   summary: string
   diagnostic_steps?: DiagnosticStep[]
@@ -38,6 +46,7 @@ interface ResolutionPlan {
   total_estimated_time_hours: number
   confidence: number
   alternative_approaches?: string[]
+  warnings?: NoveltyWarning[]
 }
 
 interface ResolutionGenerationOutputProps {
@@ -78,7 +87,8 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
     references = [],
     total_estimated_time_hours,
     confidence,
-    alternative_approaches = []
+    alternative_approaches = [],
+    warnings = []
   } = resolution_plan
 
   // Determine confidence level
@@ -199,6 +209,64 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
           </div>
         </CardContent>
       </Card>
+
+      {/* Novelty Warnings */}
+      {warnings.length > 0 && (
+        <div className="space-y-3">
+          {warnings.map((warning, idx) => (
+            <Card
+              key={idx}
+              className={`border-2 ${
+                warning.severity === "high"
+                  ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                  : "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+              }`}
+            >
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    warning.severity === "high"
+                      ? "bg-amber-100 dark:bg-amber-900"
+                      : "bg-amber-100/50 dark:bg-amber-900/50"
+                  }`}>
+                    <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm text-amber-900 dark:text-amber-100">
+                          {warning.type === "novelty_detected" ? "Novelty Detected" : warning.type}
+                        </h4>
+                        <Badge
+                          className={`text-xs ${
+                            warning.severity === "high"
+                              ? "bg-amber-500 text-white"
+                              : "bg-amber-400 text-white"
+                          }`}
+                        >
+                          {warning.severity.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                        <span className="font-medium">Score:</span>
+                        <span className="font-bold">{(warning.score * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {warning.message}
+                    </p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 dark:text-amber-300">
+                        Recommendation: {warning.recommendation}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Diagnostic Steps */}
       {diagnostic_steps.length > 0 && (
