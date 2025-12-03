@@ -1,17 +1,8 @@
 "use client"
 
-import { Clock, AlertTriangle, CheckCircle2, Info, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp, Sparkles } from "lucide-react"
+import { Clock, AlertTriangle, CheckCircle2, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-
-interface DiagnosticStep {
-  step_number: number
-  description: string
-  commands: string[]
-  expected_output: string
-  estimated_time_minutes: number
-}
 
 interface ResolutionStep {
   step_number: number
@@ -21,6 +12,8 @@ interface ResolutionStep {
   estimated_time_minutes: number
   risk_level: "low" | "medium" | "high"
   rollback_procedure: string
+  source_ticket?: string
+  source_similarity?: number
 }
 
 interface Reference {
@@ -39,7 +32,6 @@ interface NoveltyWarning {
 
 interface ResolutionPlan {
   summary: string
-  diagnostic_steps?: DiagnosticStep[]
   resolution_steps: ResolutionStep[]
   additional_considerations?: string[]
   references?: Reference[]
@@ -81,7 +73,6 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
   const { resolution_plan } = data
   const {
     summary,
-    diagnostic_steps = [],
     resolution_steps = [],
     additional_considerations = [],
     references = [],
@@ -268,81 +259,7 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
         </div>
       )}
 
-      {/* Diagnostic Steps */}
-      {diagnostic_steps.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-              Diagnostic Steps
-            </h4>
-            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-          </div>
-
-          <div className="space-y-3">
-            {diagnostic_steps.map((step) => (
-              <Card key={step.step_number} className="border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-                <CardContent className="pt-4">
-                  <div className="flex gap-4">
-                    {/* Step Number */}
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                          {step.step_number}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {step.description}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Clock className="h-3 w-3 text-slate-400" />
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            ~{step.estimated_time_minutes} minutes
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Commands */}
-                      {step.commands.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Terminal className="h-3 w-3 text-slate-500" />
-                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                              Commands
-                            </span>
-                          </div>
-                          {step.commands.map((cmd, idx) => (
-                            <pre key={idx} className="bg-slate-900 dark:bg-slate-950 text-slate-100 dark:text-slate-300 p-2 rounded text-xs overflow-x-auto font-mono">
-{cmd}
-                            </pre>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Expected Output */}
-                      <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded p-2.5">
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                          Expected Output
-                        </p>
-                        <p className="text-xs text-slate-700 dark:text-slate-300">
-                          {step.expected_output}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Resolution Steps */}
+      {/* Resolution Steps (extracted from similar tickets) */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -376,6 +293,20 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
                         {step.risk_level.toUpperCase()}
                       </Badge>
                     </div>
+
+                    {/* Source Ticket Reference */}
+                    {step.source_ticket && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <Link2 className="h-3 w-3" />
+                        <span>From ticket: </span>
+                        <code className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded">
+                          {step.source_ticket}
+                        </code>
+                        {step.source_similarity && (
+                          <span className="text-slate-400">({step.source_similarity}% match)</span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3 text-slate-400" />
