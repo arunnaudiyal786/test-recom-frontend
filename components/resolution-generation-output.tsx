@@ -1,12 +1,13 @@
 "use client"
 
-import { Clock, AlertTriangle, CheckCircle2, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp, Sparkles } from "lucide-react"
+import { Clock, AlertTriangle, CheckCircle2, Terminal, Shield, RotateCcw, FileText, Link2, Lightbulb, TrendingUp, Sparkles, Target } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
 interface ResolutionStep {
   step_number: number
   description: string
+  expected_result?: string
   commands: string[]
   validation: string
   estimated_time_minutes: number
@@ -413,6 +414,23 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
                         <code className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded">
                           {step.source_ticket}
                         </code>
+                      </div>
+                    )}
+
+                    {/* Expected Result */}
+                    {step.expected_result && (
+                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2.5">
+                        <div className="flex items-start gap-2">
+                          <Target className="h-3.5 w-3.5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">
+                              Expected Result
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-400">
+                              {step.expected_result}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     )}
 
