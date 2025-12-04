@@ -212,8 +212,8 @@ export function AgentCard({
     ? parseDomainClassificationOutput(output)
     : null
 
-  // Check if this is pattern recognition agent output
-  const isPatternRecognition = name.toLowerCase().includes("pattern recognition")
+  // Check if this is pattern recognition / similar tickets agent output
+  const isPatternRecognition = name.toLowerCase().includes("pattern recognition") || name.toLowerCase().includes("similar tickets")
   const patternData = isPatternRecognition && status === "complete"
     ? parsePatternRecognitionOutput(output)
     : null

@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-
-interface DomainColors {
-  bg: string
-  text: string
-  border: string
-  icon: string
-}
+import { useMemo } from "react"
+import {
+  getSchemaConfig,
+  getDomainConfig,
+  getDomainColors as getColors,
+  getDomainList,
+  PRIORITIES,
+  SAMPLE_TICKET_PLACEHOLDER,
+  type DomainColors,
+} from "@/config/schema-config"
 
 interface DomainInfo {
   full_name: string
@@ -15,84 +17,43 @@ interface DomainInfo {
   colors: DomainColors
 }
 
-interface SchemaConfig {
-  domains: Record<string, DomainInfo>
-  domain_list: string[]
-  priorities: string[]
-  sample_placeholder: string
-}
-
-// Default fallback config for when API is unavailable
-const defaultConfig: SchemaConfig = {
-  domains: {
-    Unknown: {
-      full_name: "Unknown Domain",
-      description: "Domain could not be determined",
-      colors: {
-        bg: "bg-slate-100 dark:bg-slate-800",
-        text: "text-slate-700 dark:text-slate-300",
-        border: "border-slate-200 dark:border-slate-700",
-        icon: "text-slate-600 dark:text-slate-400",
-      },
-    },
-  },
-  domain_list: ["Unknown"],
-  priorities: ["Low", "Medium", "High", "Critical"],
-  sample_placeholder: "Enter ticket description...",
-}
-
+/**
+ * Hook to access schema configuration.
+ *
+ * Configuration is now loaded from local TypeScript file (config/schema-config.ts)
+ * instead of fetching from the backend API. This provides:
+ * - No loading state needed
+ * - Full type safety
+ * - Better separation of concerns (UI config in frontend)
+ */
 export function useSchemaConfig() {
-  const [config, setConfig] = useState<SchemaConfig>(defaultConfig)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function loadConfig() {
-      try {
-        const response = await fetch("http://localhost:8000/api/schema-config")
-        if (!response.ok) {
-          throw new Error(`Failed to load schema config: ${response.status}`)
-        }
-        const data = await response.json()
-        setConfig(data)
-        setError(null)
-      } catch (err) {
-        console.warn("Could not load schema config from API, using defaults:", err)
-        setError(err instanceof Error ? err.message : "Unknown error")
-        // Keep using default config
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadConfig()
-  }, [])
+  // Memoize the config to avoid recalculating on every render
+  const config = useMemo(() => getSchemaConfig(), [])
 
   // Helper function to get domain info with fallback
   const getDomainInfo = (domain: string): DomainInfo => {
-    return (
-      config.domains[domain] || {
-        full_name: domain,
-        description: "",
-        colors: defaultConfig.domains.Unknown.colors,
-      }
-    )
+    const domainConfig = getDomainConfig(domain)
+    return {
+      full_name: domainConfig.full_name,
+      description: domainConfig.description,
+      colors: domainConfig.colors,
+    }
   }
 
   // Helper function to get domain colors with fallback
   const getDomainColors = (domain: string): DomainColors => {
-    const info = getDomainInfo(domain)
-    return info.colors
+    return getColors(domain)
   }
 
   return {
     config,
-    loading,
-    error,
+    // No more loading state needed - config is synchronous
+    loading: false,
+    error: null,
     getDomainInfo,
     getDomainColors,
-    domains: config.domain_list,
-    priorities: config.priorities,
-    samplePlaceholder: config.sample_placeholder,
+    domains: getDomainList(),
+    priorities: [...PRIORITIES],
+    samplePlaceholder: SAMPLE_TICKET_PLACEHOLDER,
   }
 }

@@ -85,44 +85,53 @@ export default function PatternRecognitionPage() {
   }, [])
 
   const handleLoadSample = async (setTicketText: (text: string) => void) => {
-    // Load sample ticket from the backend's input file and populate the textarea
+    // Load sample ticket from the backend's input file (mandatory - no fallback)
     try {
       const response = await fetch("http://localhost:8000/api/load-sample")
-      if (response.ok) {
-        const sampleTicket = await response.json()
-        // Format the ticket as text for the textarea
-        const ticketText = formatTicketAsText(sampleTicket)
-        setTicketText(ticketText)
+      if (!response.ok) {
+        const errorDetail = await response.text()
+        throw new Error(`Failed to load sample ticket: ${response.status} - ${errorDetail}`)
       }
-    } catch (error) {
-      // Fallback to hardcoded sample if API is not available
-      const sampleTicket: TicketData = {
-        ticket_id: "JIRA-NEW-001",
-        title: "MM_ALDER service failing with connection timeout errors",
-        description:
-          "The MM_ALDER service is experiencing intermittent connection timeout errors when trying to connect to the database. Users are reporting slow response times during peak hours, and we're seeing 504 Gateway Timeout errors in the logs. The issue started happening after yesterday's deployment. Database connection pool metrics show that we're hitting the maximum connection limit (100 connections). Error logs show: 'Connection timeout after 10 seconds' and 'Connection pool exhausted'. This is affecting member eligibility lookups and enrollment processing.",
-        priority: "High",
-        metadata: {
-          reported_by: "ops-team@example.com",
-          affected_users: 150,
-          environment: "production",
-        },
-      }
-      const ticketText = formatTicketAsText(sampleTicket)
+      const sampleTicket = await response.json()
+      // Format the ticket as text for the textarea (dynamic - handles any JSON structure)
+      const ticketText = formatAnyJsonAsText(sampleTicket)
       setTicketText(ticketText)
+    } catch (error) {
+      // Show error to user - do NOT fallback to hardcoded sample
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      alert(`Could not load sample ticket from backend.\n\nPlease ensure:\n1. Backend is running on http://localhost:8000\n2. File exists at test-recom-backend/input/current_ticket.json\n\nError: ${errorMessage}`)
+      console.error("Failed to load sample ticket:", error)
     }
   }
 
-  const formatTicketAsText = (ticket: TicketData): string => {
-    // Format the ticket object as human-readable text
-    return `${ticket.title}
+  // Dynamic formatter - handles any JSON structure from current_ticket.json
+  const formatAnyJsonAsText = (obj: Record<string, any>, indent: number = 0): string => {
+    const lines: string[] = []
+    const prefix = "  ".repeat(indent)
 
-${ticket.description}
+    for (const [key, value] of Object.entries(obj)) {
+      const formattedKey = key
+        .replace(/_/g, " ")
+        .replace(/([A-Z])/g, " $1")
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim()
 
-Priority: ${ticket.priority}
-Reported by: ${ticket.metadata.reported_by}
-Environment: ${ticket.metadata.environment}
-Affected users: ${ticket.metadata.affected_users}`
+      if (value === null || value === undefined) {
+        continue
+      } else if (typeof value === "object" && !Array.isArray(value)) {
+        // Nested object - recurse
+        lines.push(`${prefix}${formattedKey}:`)
+        lines.push(formatAnyJsonAsText(value, indent + 1))
+      } else if (Array.isArray(value)) {
+        // Array - format as comma-separated or bullet list
+        lines.push(`${prefix}${formattedKey}: ${value.join(", ")}`)
+      } else {
+        // Primitive value
+        lines.push(`${prefix}${formattedKey}: ${value}`)
+      }
+    }
+
+    return lines.join("\n")
   }
 
   const updateAgentState = (agentKey: string, updates: Partial<AgentState>) => {
@@ -300,9 +309,9 @@ Affected users: ${ticket.metadata.affected_users}`
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Pattern Recognition</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Test Plan Recommendation</h1>
         <p className="text-muted-foreground mt-2">
-          Automated ticket classification, pattern matching, label assignment, and resolution generation
+          AI-powered test plan recommendations based on historical ticket analysis and pattern matching
         </p>
       </div>
 
@@ -315,12 +324,12 @@ Affected users: ${ticket.metadata.affected_users}`
       />
 
       {/* Workflow Sequence Visualization */}
-      <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+      <Card className="border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+          <CardTitle className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Agent Workflow Sequence
             {skipClassification && (
-              <span className="ml-2 text-xs font-normal text-orange-600 dark:text-orange-400">
+              <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">
                 (Domain Classification disabled)
               </span>
             )}
@@ -336,21 +345,21 @@ Affected users: ${ticket.metadata.affected_users}`
                     className={`rounded-lg p-3 transition-all duration-300 ${
                       agents.classification.status === "processing" ||
                       agents.classification.status === "streaming"
-                        ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
+                        ? "bg-blue-500 shadow-md"
                         : agents.classification.status === "complete"
-                        ? "bg-green-500 shadow-md"
-                        : "bg-gray-300 dark:bg-gray-700"
+                        ? "bg-emerald-500 shadow-sm"
+                        : "bg-slate-300 dark:bg-slate-700"
                     }`}
                   >
                     <Brain className="h-6 w-6 text-white" />
                   </div>
-                  <p className="text-xs font-medium mt-2 text-center">
+                  <p className="text-xs font-medium mt-2 text-center text-slate-700 dark:text-slate-300">
                     Domain
                     <br />
                     Classification
                   </p>
                   {agents.classification.status === "complete" && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
                   )}
                 </div>
 
@@ -358,27 +367,27 @@ Affected users: ${ticket.metadata.affected_users}`
               </>
             )}
 
-            {/* Step 2: Pattern Recognition (Step 1 when classification is skipped) */}
+            {/* Step 2: Similar Cases (Step 1 when classification is skipped) */}
             <div className="flex flex-col items-center min-w-[140px]">
               <div
                 className={`rounded-lg p-3 transition-all duration-300 ${
                   agents.patternRecognition.status === "processing" ||
                   agents.patternRecognition.status === "streaming"
-                    ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
+                    ? "bg-blue-500 shadow-md"
                     : agents.patternRecognition.status === "complete"
-                    ? "bg-green-500 shadow-md"
-                    : "bg-gray-300 dark:bg-gray-700"
+                    ? "bg-emerald-500 shadow-sm"
+                    : "bg-slate-300 dark:bg-slate-700"
                 }`}
               >
                 <Search className="h-6 w-6 text-white" />
               </div>
-              <p className="text-xs font-medium mt-2 text-center">
-                Pattern
+              <p className="text-xs font-medium mt-2 text-center text-slate-700 dark:text-slate-300">
+                Similar
                 <br />
-                Recognition
+                Tickets
               </p>
               {agents.patternRecognition.status === "complete" && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
               )}
             </div>
 
@@ -390,21 +399,21 @@ Affected users: ${ticket.metadata.affected_users}`
                 className={`rounded-lg p-3 transition-all duration-300 ${
                   agents.labelAssignment.status === "processing" ||
                   agents.labelAssignment.status === "streaming"
-                    ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
+                    ? "bg-blue-500 shadow-md"
                     : agents.labelAssignment.status === "complete"
-                    ? "bg-green-500 shadow-md"
-                    : "bg-gray-300 dark:bg-gray-700"
+                    ? "bg-emerald-500 shadow-sm"
+                    : "bg-slate-300 dark:bg-slate-700"
                 }`}
               >
                 <Tag className="h-6 w-6 text-white" />
               </div>
-              <p className="text-xs font-medium mt-2 text-center">
+              <p className="text-xs font-medium mt-2 text-center text-slate-700 dark:text-slate-300">
                 Label
                 <br />
                 Assignment
               </p>
               {agents.labelAssignment.status === "complete" && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
               )}
             </div>
 
@@ -416,21 +425,21 @@ Affected users: ${ticket.metadata.affected_users}`
                 className={`rounded-lg p-3 transition-all duration-300 ${
                   agents.noveltyDetection.status === "processing" ||
                   agents.noveltyDetection.status === "streaming"
-                    ? "bg-amber-500 shadow-lg ring-2 ring-amber-300 animate-pulse"
+                    ? "bg-amber-500 shadow-md"
                     : agents.noveltyDetection.status === "complete"
-                    ? "bg-green-500 shadow-md"
-                    : "bg-gray-300 dark:bg-gray-700"
+                    ? "bg-emerald-500 shadow-sm"
+                    : "bg-slate-300 dark:bg-slate-700"
                 }`}
               >
                 <Sparkles className="h-6 w-6 text-white" />
               </div>
-              <p className="text-xs font-medium mt-2 text-center">
+              <p className="text-xs font-medium mt-2 text-center text-slate-700 dark:text-slate-300">
                 Novelty
                 <br />
                 Detection
               </p>
               {agents.noveltyDetection.status === "complete" && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
               )}
             </div>
 
@@ -442,21 +451,21 @@ Affected users: ${ticket.metadata.affected_users}`
                 className={`rounded-lg p-3 transition-all duration-300 ${
                   agents.resolutionGeneration.status === "processing" ||
                   agents.resolutionGeneration.status === "streaming"
-                    ? "bg-blue-500 shadow-lg ring-2 ring-blue-300 animate-pulse"
+                    ? "bg-blue-500 shadow-md"
                     : agents.resolutionGeneration.status === "complete"
-                    ? "bg-green-500 shadow-md"
-                    : "bg-gray-300 dark:bg-gray-700"
+                    ? "bg-emerald-500 shadow-sm"
+                    : "bg-slate-300 dark:bg-slate-700"
                 }`}
               >
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <p className="text-xs font-medium mt-2 text-center">
-                Resolution
+              <p className="text-xs font-medium mt-2 text-center text-slate-700 dark:text-slate-300">
+                Test Plan
                 <br />
                 Generation
               </p>
               {agents.resolutionGeneration.status === "complete" && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-1">✓ Complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
               )}
             </div>
           </div>
@@ -475,7 +484,7 @@ Affected users: ${ticket.metadata.affected_users}`
           />
         )}
         <AgentCard
-          name="Pattern Recognition Agent"
+          name="Similar Tickets Agent"
           description="Finds similar historical tickets using FAISS vector search"
           icon={<Search className="h-5 w-5" />}
           {...agents.patternRecognition}
@@ -486,12 +495,20 @@ Affected users: ${ticket.metadata.affected_users}`
           icon={<Tag className="h-5 w-5" />}
           {...agents.labelAssignment}
         />
-        <AgentCard
-          name="Novelty Detection Agent"
-          description="Detects if ticket represents a new category not in taxonomy"
-          icon={<Sparkles className="h-5 w-5" />}
-          {...agents.noveltyDetection}
-        />
+        <div className="relative">
+          <AgentCard
+            name="Novelty Detection Agent"
+            description="Detects if ticket represents a new category not in taxonomy"
+            icon={<Sparkles className="h-5 w-5" />}
+            {...agents.noveltyDetection}
+          />
+          <div className="absolute top-2 right-2">
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/30 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+              <Sparkles className="h-3 w-3" />
+              Work in Progress
+            </span>
+          </div>
+        </div>
         <AgentCard
           name="Resolution Generation Agent"
           description="Generates detailed resolution plans with steps and estimates"

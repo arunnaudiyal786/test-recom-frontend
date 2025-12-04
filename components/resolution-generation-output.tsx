@@ -41,6 +41,25 @@ interface ResolutionPlan {
   warnings?: NoveltyWarning[]
 }
 
+interface NoveltySignal {
+  name: string
+  fires: boolean
+  value: number
+  threshold: number
+  actual: number
+  reasoning: string
+}
+
+interface NoveltyDetails {
+  signals_fired?: number
+  nearest_category?: string
+  decision_factors?: {
+    is_novel_by_confidence: boolean
+    is_novel_by_score: boolean
+    novelty_score_threshold: number
+  }
+}
+
 interface ResolutionGenerationOutputProps {
   data: {
     resolution_plan: ResolutionPlan
@@ -48,6 +67,17 @@ interface ResolutionGenerationOutputProps {
     status: string
     current_agent: string
     messages: Array<{ role: string; content: string }>
+    // Novelty detection fields from backend
+    novelty_detected?: boolean
+    novelty_score?: number
+    novelty_reasoning?: string
+    novelty_recommendation?: "proceed" | "flag_for_review" | "escalate"
+    novelty_signals?: {
+      signal_1_max_confidence?: NoveltySignal
+      signal_2_entropy?: NoveltySignal
+      signal_3_centroid_distance?: NoveltySignal
+    }
+    novelty_details?: NoveltyDetails
   }
 }
 
@@ -61,7 +91,7 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-slate-500 dark:text-slate-400" />
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Resolution plan is not available yet. Please wait for the agent to complete processing.
+                Test plan is not available yet. Please wait for the agent to complete processing.
               </p>
             </div>
           </CardContent>
@@ -81,6 +111,14 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
     alternative_approaches = [],
     warnings = []
   } = resolution_plan
+
+  // Extract top-level novelty detection fields from backend (single source of truth)
+  const noveltyDetected = data.novelty_detected ?? false
+  const noveltyScore = data.novelty_score ?? 0
+  const noveltyReasoning = data.novelty_reasoning
+  const noveltyRecommendation = data.novelty_recommendation
+  const noveltySignals = data.novelty_signals
+  const noveltyDetails = data.novelty_details
 
   // Determine confidence level
   const getConfidenceLevel = (conf: number) => {
@@ -112,7 +150,7 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <h3 className="font-semibold text-base text-slate-900 dark:text-slate-100">
-                  Resolution Plan Generated
+                  Test Plan Generated
                 </h3>
               </div>
               <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
@@ -167,7 +205,7 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
                 <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Total Steps</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Test Steps</p>
                 <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                   {resolution_steps.length}
                 </p>
@@ -201,71 +239,144 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
         </CardContent>
       </Card>
 
-      {/* Novelty Warnings */}
-      {warnings.length > 0 && (
-        <div className="space-y-3">
-          {warnings.map((warning, idx) => (
-            <Card
-              key={idx}
-              className={`border-2 ${
-                warning.severity === "high"
-                  ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30"
-                  : "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
-              }`}
-            >
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    warning.severity === "high"
-                      ? "bg-amber-100 dark:bg-amber-900"
-                      : "bg-amber-100/50 dark:bg-amber-900/50"
-                  }`}>
-                    <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+      {/* Novelty Detection Alert - Uses top-level novelty_detected from backend */}
+      {noveltyDetected && (
+        <Card className={`border-2 ${
+          noveltyScore > 0.8
+            ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30"
+            : "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+        }`}>
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2 rounded-lg ${
+                noveltyScore > 0.8
+                  ? "bg-amber-100 dark:bg-amber-900"
+                  : "bg-amber-100/50 dark:bg-amber-900/50"
+              }`}>
+                <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 space-y-2">
+                {/* Header with Score */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-semibold text-sm text-amber-900 dark:text-amber-100">
+                      Novelty Detected
+                    </h4>
+                    <Badge
+                      className={`text-xs ${
+                        noveltyScore > 0.8
+                          ? "bg-amber-500 text-white"
+                          : "bg-amber-400 text-white"
+                      }`}
+                    >
+                      {noveltyScore > 0.8 ? "HIGH" : "MEDIUM"}
+                    </Badge>
                   </div>
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-sm text-amber-900 dark:text-amber-100">
-                          {warning.type === "novelty_detected" ? "Novelty Detected" : warning.type}
-                        </h4>
-                        <Badge
-                          className={`text-xs ${
-                            warning.severity === "high"
-                              ? "bg-amber-500 text-white"
-                              : "bg-amber-400 text-white"
-                          }`}
-                        >
-                          {warning.severity.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-                        <span className="font-medium">Score:</span>
-                        <span className="font-bold">{(warning.score * 100).toFixed(0)}%</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-amber-800 dark:text-amber-200">
-                      {warning.message}
-                    </p>
-                    <div className="flex items-center gap-2 pt-1">
-                      <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 dark:text-amber-300">
-                        Recommendation: {warning.recommendation}
-                      </Badge>
-                    </div>
+                  <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+                    <span className="font-medium">Score:</span>
+                    <span className="font-bold">{(noveltyScore * 100).toFixed(0)}%</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                {/* Reasoning/Message */}
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  {noveltyReasoning || `This ticket may represent a novel category (score: ${noveltyScore.toFixed(2)}). Consider reviewing the category taxonomy.`}
+                </p>
+
+                {/* Recommendation Badge */}
+                {noveltyRecommendation && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant="outline" className="text-xs border-amber-400 text-amber-700 dark:text-amber-300">
+                      Recommendation: {noveltyRecommendation.replace(/_/g, " ")}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Signal Details */}
+                {noveltySignals && (
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-amber-200 dark:border-amber-800 mt-2">
+                    {noveltySignals.signal_1_max_confidence && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_1_max_confidence.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Max Confidence</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_1_max_confidence.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_1_max_confidence.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_1_max_confidence.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                    {noveltySignals.signal_2_entropy && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_2_entropy.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Entropy</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_2_entropy.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_2_entropy.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_2_entropy.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                    {noveltySignals.signal_3_centroid_distance && (
+                      <div className={`p-2 rounded text-center ${
+                        noveltySignals.signal_3_centroid_distance.fires
+                          ? "bg-amber-200 dark:bg-amber-900/50"
+                          : "bg-slate-100 dark:bg-slate-800"
+                      }`}>
+                        <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Distance</p>
+                        <p className={`text-sm font-bold ${
+                          noveltySignals.signal_3_centroid_distance.fires
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-slate-500"
+                        }`}>
+                          {(noveltySignals.signal_3_centroid_distance.actual * 100).toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {noveltySignals.signal_3_centroid_distance.fires ? "⚠ Fires" : "✓ OK"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Nearest Category */}
+                {noveltyDetails?.nearest_category && (
+                  <div className="text-xs text-amber-600 dark:text-amber-400 pt-1">
+                    Nearest category: <span className="font-medium">{noveltyDetails.nearest_category}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Resolution Steps (extracted from similar tickets) */}
+      {/* Test Plan (synthesized from similar tickets) */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-            Resolution Steps
+            Test Plan
           </h4>
+          <Badge variant="outline" className="text-xs text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600">
+            Max 5 Steps
+          </Badge>
           <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
         </div>
 
@@ -294,17 +405,14 @@ export function ResolutionGenerationOutput({ data }: ResolutionGenerationOutputP
                       </Badge>
                     </div>
 
-                    {/* Source Ticket Reference */}
+                    {/* Source Tickets Reference */}
                     {step.source_ticket && (
                       <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                         <Link2 className="h-3 w-3" />
-                        <span>From ticket: </span>
+                        <span>Synthesized from: </span>
                         <code className="font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded">
                           {step.source_ticket}
                         </code>
-                        {step.source_similarity && (
-                          <span className="text-slate-400">({step.source_similarity}% match)</span>
-                        )}
                       </div>
                     )}
 

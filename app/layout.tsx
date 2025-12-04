@@ -7,8 +7,8 @@ import { LayoutContent } from "@/components/layout-content"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "RRE Dashboard - Intelligent Ticket Management",
-  description: "Multi-agent pipeline for automated ticket processing and resolution",
+  title: "L3 Dashboard - Intelligent Ticket Management",
+  description: "AI-powered test plan recommendations and automated ticket resolution",
 }
 
 export default function RootLayout({

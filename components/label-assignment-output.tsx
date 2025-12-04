@@ -127,14 +127,11 @@ export function LabelAssignmentOutput({ data }: LabelAssignmentOutputProps) {
   const technicalCount = technicalLabels.length
   const totalLabels = categoryCount + businessCount + technicalCount
 
-  // Novelty detection: explicit flag OR no category labels assigned (indicates novel ticket)
-  const noCategoryLabelsAssigned = categoryCount === 0
-  const noveltyDetected = data.novelty_detected || noCategoryLabelsAssigned
-  const noveltyScore = data.novelty_score || (noCategoryLabelsAssigned ? 1.0 : 0)
-  const noveltyReasoning = data.novelty_reasoning || (noCategoryLabelsAssigned
-    ? "No predefined category labels could be assigned to this ticket. This may represent a novel category not in the current taxonomy."
-    : undefined)
-  const noveltyRecommendation = data.novelty_recommendation || (noCategoryLabelsAssigned ? "escalate" : undefined)
+  // Novelty detection: use ONLY the explicit flag from backend
+  const noveltyDetected = data.novelty_detected ?? false
+  const noveltyScore = data.novelty_score ?? 0
+  const noveltyReasoning = data.novelty_reasoning
+  const noveltyRecommendation = data.novelty_recommendation
   const noveltySignals = data.novelty_signals
   const noveltyDetails = data.novelty_details
 
