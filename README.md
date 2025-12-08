@@ -8,7 +8,7 @@ Modern Next.js dashboard for the Intelligent Ticket Management System with real-
 - **Real-time Agent Streaming**: Live updates as agents process tickets
 - **4-Agent Pipeline Visualization**: Visual progress tracking for:
   - Domain Classification Agent
-  - Pattern Recognition Agent
+  - Historical Match Agent
   - Label Assignment Agent
   - Resolution Generation Agent
 - **Responsive Design**: Works on desktop, tablet, and mobile
@@ -101,14 +101,14 @@ As the ticket is processed, you'll see:
    - Final results when complete
 
 2. **Sequential Processing**: Agents execute in order:
-   - Classification → Pattern Recognition → Label Assignment → Resolution Generation
+   - Classification → Historical Match → Label Assignment → Resolution Generation
 
 ### Agent Outputs
 
 Each agent displays different information:
 
 - **Classification Agent**: Domain, confidence score, extracted keywords
-- **Pattern Recognition Agent**: Similar ticket count, top similarity scores
+- **Historical Match Agent**: Similar ticket count, top similarity scores
 - **Label Assignment Agent**: Assigned labels with confidence levels
 - **Resolution Generation Agent**: Full resolution plan with steps and time estimates
 

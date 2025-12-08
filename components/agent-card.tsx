@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import { Loader2, CheckCircle2, XCircle, Circle, HelpCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DomainClassificationOutput } from "./domain-classification-output"
-import { PatternRecognitionOutput } from "./pattern-recognition-output"
+import { HistoricalMatchOutput } from "./historical-match-output"
 import { LabelAssignmentOutput } from "./label-assignment-output"
 import { ResolutionGenerationOutput } from "./resolution-generation-output"
 import { PromptViewerDialog } from "./prompt-viewer-dialog"
@@ -153,8 +153,8 @@ export function AgentCard({
     return null
   }
 
-  // Helper function to parse pattern recognition output
-  const parsePatternRecognitionOutput = (outputText: string) => {
+  // Helper function to parse historical match output
+  const parseHistoricalMatchOutput = (outputText: string) => {
     try {
       // Extract JSON from the output (it might be after "--- Final Output ---")
       const jsonMatch = outputText.match(/\{[\s\S]*"similar_tickets_count"[\s\S]*\}/)
@@ -212,10 +212,10 @@ export function AgentCard({
     ? parseDomainClassificationOutput(output)
     : null
 
-  // Check if this is pattern recognition / similar tickets agent output
-  const isPatternRecognition = name.toLowerCase().includes("pattern recognition") || name.toLowerCase().includes("similar tickets")
-  const patternData = isPatternRecognition && status === "complete"
-    ? parsePatternRecognitionOutput(output)
+  // Check if this is historical match / similar tickets agent output
+  const isHistoricalMatch = name.toLowerCase().includes("historical match") || name.toLowerCase().includes("similar tickets")
+  const matchData = isHistoricalMatch && status === "complete"
+    ? parseHistoricalMatchOutput(output)
     : null
 
   // Check if this is label assignment agent output
@@ -307,7 +307,7 @@ export function AgentCard({
         {status !== "idle" && (
           <div className={cn(
             "rounded-md border bg-background p-4 overflow-auto",
-            domainData || patternData || labelData || resolutionData ? "max-h-[600px]" : "h-48"
+            domainData || matchData || labelData || resolutionData ? "max-h-[600px]" : "h-48"
           )}>
             <div className="space-y-2 text-sm">
               {/* Error Message */}
@@ -331,8 +331,8 @@ export function AgentCard({
                 <>
                   {domainData ? (
                     <DomainClassificationOutput data={domainData} />
-                  ) : patternData ? (
-                    <PatternRecognitionOutput data={patternData} />
+                  ) : matchData ? (
+                    <HistoricalMatchOutput data={matchData} />
                   ) : labelData ? (
                     <LabelAssignmentOutput data={labelData} />
                   ) : resolutionData ? (

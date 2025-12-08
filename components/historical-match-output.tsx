@@ -17,7 +17,7 @@ interface SimilarTicket {
   resolution_time_hours: number
 }
 
-interface PatternRecognitionData {
+interface HistoricalMatchData {
   similar_tickets_count: number
   top_similarity: number
   domain_filter: string
@@ -25,8 +25,8 @@ interface PatternRecognitionData {
   top_tickets: SimilarTicket[]
 }
 
-interface PatternRecognitionOutputProps {
-  data: PatternRecognitionData
+interface HistoricalMatchOutputProps {
+  data: HistoricalMatchData
 }
 
 const priorityConfig = {
@@ -48,7 +48,7 @@ const priorityConfig = {
   },
 }
 
-export function PatternRecognitionOutput({ data }: PatternRecognitionOutputProps) {
+export function HistoricalMatchOutput({ data }: HistoricalMatchOutputProps) {
   const topSimilarityPercentage = (data.top_similarity || 0) * 100
   const avgSimilarityPercentage = (data.avg_similarity || 0) * 100
 

@@ -42,7 +42,7 @@ export default function PatternRecognitionPage() {
       output: "",
       streamingText: "",
     },
-    patternRecognition: {
+    historicalMatch: {
       status: "idle",
       progress: 0,
       output: "",
@@ -371,10 +371,10 @@ export default function PatternRecognitionPage() {
             <div className="flex flex-col items-center min-w-[140px]">
               <div
                 className={`rounded-lg p-3 transition-all duration-300 ${
-                  agents.patternRecognition.status === "processing" ||
-                  agents.patternRecognition.status === "streaming"
+                  agents.historicalMatch.status === "processing" ||
+                  agents.historicalMatch.status === "streaming"
                     ? "bg-blue-500 shadow-md"
-                    : agents.patternRecognition.status === "complete"
+                    : agents.historicalMatch.status === "complete"
                     ? "bg-emerald-500 shadow-sm"
                     : "bg-slate-300 dark:bg-slate-700"
                 }`}
@@ -386,7 +386,7 @@ export default function PatternRecognitionPage() {
                 <br />
                 Tickets
               </p>
-              {agents.patternRecognition.status === "complete" && (
+              {agents.historicalMatch.status === "complete" && (
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">✓ Complete</p>
               )}
             </div>
@@ -484,10 +484,10 @@ export default function PatternRecognitionPage() {
           />
         )}
         <AgentCard
-          name="Similar Tickets Agent"
+          name="Historical Match Agent"
           description="Finds similar historical tickets using FAISS vector search"
           icon={<Search className="h-5 w-5" />}
-          {...agents.patternRecognition}
+          {...agents.historicalMatch}
         />
         <AgentCard
           name="Label Assignment Agent"
