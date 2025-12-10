@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { DomainClassificationOutput } from "./domain-classification-output"
 import { HistoricalMatchOutput } from "./historical-match-output"
 import { LabelAssignmentOutput } from "./label-assignment-output"
+import { NoveltyDetectionOutput } from "./novelty-detection-output"
 import { ResolutionGenerationOutput } from "./resolution-generation-output"
 import { PromptViewerDialog } from "./prompt-viewer-dialog"
 import { PromptPreviewTooltip } from "./prompt-preview-tooltip"
@@ -206,6 +207,24 @@ export function AgentCard({
     return null
   }
 
+  // Helper function to parse novelty detection output
+  const parseNoveltyDetectionOutput = (outputText: string) => {
+    try {
+      // Extract JSON from the output (it might be after "--- Final Output ---")
+      const jsonMatch = outputText.match(/\{[\s\S]*"novelty_detected"[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        // Check if this has the novelty detection structure
+        if (parsed.novelty_detected !== undefined && parsed.novelty_signals !== undefined) {
+          return parsed
+        }
+      }
+    } catch (e) {
+      return null
+    }
+    return null
+  }
+
   // Check if this is domain classification agent output
   const isDomainClassification = name.toLowerCase().includes("domain classification")
   const domainData = isDomainClassification && status === "complete"
@@ -228,6 +247,12 @@ export function AgentCard({
   const isResolutionGeneration = name.toLowerCase().includes("resolution generation")
   const resolutionData = isResolutionGeneration && status === "complete"
     ? parseResolutionGenerationOutput(output)
+    : null
+
+  // Check if this is novelty detection agent output
+  const isNoveltyDetection = name.toLowerCase().includes("novelty detection")
+  const noveltyData = isNoveltyDetection && status === "complete"
+    ? parseNoveltyDetectionOutput(output)
     : null
 
   // Determine if this agent should show the prompt info button
@@ -307,7 +332,7 @@ export function AgentCard({
         {status !== "idle" && (
           <div className={cn(
             "rounded-md border bg-background p-4 overflow-auto",
-            domainData || matchData || labelData || resolutionData ? "max-h-[600px]" : "h-48"
+            domainData || matchData || labelData || resolutionData || noveltyData ? "max-h-[600px]" : "h-48"
           )}>
             <div className="space-y-2 text-sm">
               {/* Error Message */}
@@ -335,6 +360,8 @@ export function AgentCard({
                     <HistoricalMatchOutput data={matchData} />
                   ) : labelData ? (
                     <LabelAssignmentOutput data={labelData} />
+                  ) : noveltyData ? (
+                    <NoveltyDetectionOutput data={noveltyData} />
                   ) : resolutionData ? (
                     <ResolutionSummaryOutput data={resolutionData} />
                   ) : (

@@ -495,20 +495,12 @@ export default function PatternRecognitionPage() {
           icon={<Tag className="h-5 w-5" />}
           {...agents.labelAssignment}
         />
-        <div className="relative">
-          <AgentCard
-            name="Novelty Detection Agent"
-            description="Detects if ticket represents a new category not in taxonomy"
-            icon={<Sparkles className="h-5 w-5" />}
-            {...agents.noveltyDetection}
-          />
-          <div className="absolute top-2 right-2">
-            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 dark:bg-amber-900/30 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-              <Sparkles className="h-3 w-3" />
-              Work in Progress
-            </span>
-          </div>
-        </div>
+        <AgentCard
+          name="Novelty Detection Agent"
+          description="Detects if ticket represents a new category not in taxonomy"
+          icon={<Sparkles className="h-5 w-5" />}
+          {...agents.noveltyDetection}
+        />
         <AgentCard
           name="Resolution Generation Agent"
           description="Generates detailed resolution plans with steps and estimates"
